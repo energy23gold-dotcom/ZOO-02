@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>레트로 랜덤 뽑기 기계</title>
+    <!-- 픽셀 느낌을 위한 레트로 폰트 임포트 -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Dosis:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1a1c23;
+            color: #ffffff;
+            font-family: 'Dosis', sans-serif, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* 아케이드 게임기 외형 본체 */
+        .arcade-machine {
+            background-color: #2d3142;
+            border: 8px solid #ef8354;
+            border-radius: 15px;
+            box-shadow: 0 10px 0 #b23a1a, 0 20px 30px rgba(0,0,0,0.5);
+            width: 420px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 20px;
+            color: #ef8354;
+            text-shadow: 2px 2px #000;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* 게임 화면 (인형뽑기 유리창 느낌) */
+        .screen {
+            width: 320px;
+            height: 280px;
+            background-color: #0f111a;
+            border: 6px inset #4f5d75;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .screen img {
+            width: 160px;
+            height: 160px;
+            object-fit: cover;
+            border: 3px solid #ffffff;
+            image-rendering: pixelated;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            margin-bottom: 15px;
+            display: none; /* 초기에는 숨김 */
+        }
+
+        .item-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #f4d35e;
+            text-align: center;
+            min-height: 25px;
+            text-shadow: 1px 1px #000;
+        }
+
+        .counter {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #b8c1ec;
+        }
+
+        /* 동그란 선택 버튼 영역 */
+        .control-panel {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .select-btn {
+            width: 90px;
+            height: 90px;
+            background: radial-gradient(circle, #ff5964 60%, #c52233 100%);
+            border: 5px solid #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #8b0000, 0 10px 15px rgba(0,0,0,0.3);
+            transition: all 0.1s ease;
+            outline: none;
+        }
+
+        .select-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #8b0000, 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .select-btn:disabled {
+            background: #555;
+            border-color: #777;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: translateY(6px);
+        }
+
+        .btn-label {
+            margin-top: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: #ffffff;
+            text-shadow: 1px 1px #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="arcade-machine">
+        <h1>RANDOM PICKER</h1>
+        
+        <!-- 화면 영역 -->
+        <div class="screen">
+            <img id="itemImage" src="" alt="뽑힌 물건">
+            <div id="itemName" class="item-name">버튼을 눌러 뽑아보세요!</div>
+            <div id="counter" class="counter">남은 횟수: 5 / 5</div>
+        </div>
+
+        <!-- 조작 버튼 영역 -->
+        <div class="control-panel">
+            <button class="select-btn" id="pickBtn" onclick="pickItem()"></button>
+            <div class="btn-label">선 택</div>
+        </div>
+    </div>
+
+    <script>
+        // 물건 데이터 설정 (물건A 2개, 물건B 3개 총 5개)
+        let items = [
+            { name: "다 쓴 연탄 100장(연탄재)", img: "item_a.jpg" }, // 물건A
+            { name: "다 쓴 연탄 100장(연탄재)", img: "item_a.jpg" }, // 물건A[cite: 1]
+            { name: "다람쥐 모양 손가락 장갑", img: "item_b.jpg" },     // 물건B
+            { name: "다람쥐 모양 손가락 장갑", img: "item_b.jpg" },     // 물건B[cite: 2]
+            { name: "다람쥐 모양 손가락 장갑", img: "item_b.jpg" }      // 물건B[cite: 2]
+        ];
+
+        let remainingPicks = 5;
+
+        // 배열을 무작위로 섞는 함수 (Fisher-Yates Shuffle)
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // 게임 시작 시 아이템 리스트 무작위 섞기
+        shuffle(items);
+
+        function pickItem() {
+            if (remainingPicks <= 0) return;
+
+            // 아이템 하나씩 꺼내기
+            let currentItem = items[5 - remainingPicks];
+            
+            // 화면에 표시
+            let imgElement = document.getElementById("itemImage");
+            let nameElement = document.getElementById("itemName");
+            let counterElement = document.getElementById("counter");
+
+            imgElement.src = currentItem.img;
+            imgElement.style.display = "block";
+            nameElement.textContent = currentItem.name;
+
+            remainingPicks--;
+            counterElement.textContent = `남은 횟수: ${remainingPicks} / 5`;
+
+            // 5번 모두 소진했을 때
+            if (remainingPicks === 0) {
+                document.getElementById("pickBtn").disabled = true;
+                document.getElementById("btn-label").textContent = "종 료";
+                setTimeout(() => {
+                    nameElement.textContent = "모든 뽑기가 끝났습니다!";
+                }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>
